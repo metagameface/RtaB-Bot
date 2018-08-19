@@ -44,7 +44,7 @@ public class GameController
 	final static int MAX_PLAYERS = 16;
 	public TextChannel channel;
 	TextChannel resultChannel;
-	int boardSize = 15;
+	int boardSize;
 	public List<Player> players = new ArrayList<>();
 	List<Player> winners = new ArrayList<>();
 	int currentTurn = -1;
@@ -176,12 +176,10 @@ public class GameController
 		demoMode = new RunDemo();
 		timer.schedule(demoMode, 3600000);
 	}
-	
 	void setResultChannel(TextChannel channelID)
 	{
 		resultChannel = channelID;
 	}
-	
 	/*
 	 * reset - (re)initialises the game state by removing all players and clearing the board.
 	 */
