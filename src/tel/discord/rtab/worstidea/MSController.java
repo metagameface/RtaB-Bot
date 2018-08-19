@@ -14,7 +14,7 @@ import tel.discord.rtab.Player;
 import tel.discord.rtab.enums.GameStatus;
 import tel.discord.rtab.minigames.SuperBonusRound;
 
-public class MSController
+public class MSController implements Controller
 {
 	final static int MAX_PLAYERS = 16;
 	public TextChannel channel;

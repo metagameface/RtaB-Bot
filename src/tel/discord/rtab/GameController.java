@@ -30,7 +30,6 @@ import tel.discord.rtab.enums.GameBot;
 import tel.discord.rtab.enums.GameStatus;
 import tel.discord.rtab.enums.Games;
 import tel.discord.rtab.enums.MoneyMultipliersToUse;
-import tel.discord.rtab.enums.PlayerJoinReturnValue;
 import tel.discord.rtab.enums.PlayerQuitReturnValue;
 import tel.discord.rtab.enums.PlayerStatus;
 import tel.discord.rtab.enums.SpaceType;
@@ -39,7 +38,7 @@ import tel.discord.rtab.minigames.SuperBonusRound;
 
 import com.jagrosh.jdautilities.commons.waiter.EventWaiter;
 
-public class GameController
+public class GameController implements Controller
 {
 	final static int MAX_PLAYERS = 16;
 	public TextChannel channel;
@@ -212,57 +211,74 @@ public class GameController
 		return -1;
 	}
 	
-	public PlayerJoinReturnValue addPlayer(Member playerID)
+	public void addPlayer(Member playerID)
 	{
+		//Run all the fail checks first
 		//Make sure game isn't already running
 		if(gameStatus != GameStatus.SIGNUPS_OPEN)
-			return PlayerJoinReturnValue.INPROGRESS;
+		{
+			channel.sendMessage("Cannot join game: Game already running.").queue();
+			return;
+		}
 		//Watch out for too many players
 		if(playersJoined >= MAX_PLAYERS)
-			return PlayerJoinReturnValue.TOOMANYPLAYERS;
+		{
+			channel.sendMessage("Cannot join game: Too many players.").queue();
+			return;
+		}
 		//Create player object
 		Player newPlayer = new Player(playerID,channel);
 		if(newPlayer.name.contains(":") || newPlayer.name.contains("#") || newPlayer.name.startsWith("!"))
-			return PlayerJoinReturnValue.BADNAME;
-		//If they're out of lives, remind them of the risk
-		if(newPlayer.lives <= 0 && newPlayer.newbieProtection <= 0)
 		{
-			channel.sendMessage(newPlayer.getSafeMention() + ", you are out of lives. "
-					+ "Your gains for the rest of the day will be reduced by 80%.").queue();
+			channel.sendMessage("Cannot join game: Illegal name").queue();
+			return;
 		}
 		//Dumb easter egg
 		if(newPlayer.money <= -1000000000)
-			return PlayerJoinReturnValue.ELIMINATED;
+		{
+			channel.sendMessage("Cannot join game: You have been eliminated from Race to a Billion.").queue();
+			return;
+		}
 		//Look for match already in player list
 		int playerLocation = findPlayerInGame(newPlayer.uID);
 		if(playerLocation != -1)
 		{
 			//Found them, check if we should update their name or just laugh at them
 			if(players.get(playerLocation).name == newPlayer.name)
-				return PlayerJoinReturnValue.ALREADYIN;
+			{
+				channel.sendMessage("Cannot join game: Already joined game.").queue();
+			}
 			else
 			{
 				players.set(playerLocation,newPlayer);
-				return PlayerJoinReturnValue.UPDATED;
+				channel.sendMessage("Updated in-game name.").queue();
 			}
+			return;
 		}
 		//Haven't found one, add them to the list
 		players.add(newPlayer);
 		playersJoined++;
+		//If they're out of lives, remind them of the risk
+		if(newPlayer.lives <= 0 && newPlayer.newbieProtection <= 0)
+		{
+			channel.sendMessage(newPlayer.getSafeMention() + ", you are out of lives. "
+					+ "Your gains for the rest of the day will be reduced by 80%.").queue();
+		}
+		//If they're near the goal, remind everyone
 		if(newPlayer.money > 900000000)
 		{
 			channel.sendMessage(String.format("%1$s needs only $%2$,d more to reach the goal!",
 					newPlayer.name,(1000000000-newPlayer.money)));
 		}
+		//Set the timer if they're the first one in
 		if(playersJoined == 1)
 		{
 			demoMode.cancel();
 			timer.schedule(new FinalCallTask(),  90000);
 			timer.schedule(new StartGameTask(), 120000);
-			return PlayerJoinReturnValue.CREATED;
+			channel.sendMessage("Starting a game of Race to a Billion in two minutes. Type !join to sign up.").queue();
 		}
-		else
-			return PlayerJoinReturnValue.JOINED;
+		channel.sendMessage(playerID.getEffectiveName() + " successfully joined the game.").queue();
 	}
 	/*
 	 * removePlayer - removes a player from the game.
