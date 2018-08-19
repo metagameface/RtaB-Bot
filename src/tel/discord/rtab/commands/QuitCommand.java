@@ -15,26 +15,11 @@ public class QuitCommand extends Command {
 	}
 	@Override
 	protected void execute(CommandEvent event) {
-		String name = event.getMember().getEffectiveName();
 		for(GameController game : RaceToABillionBot.game)
 		{
 			if(game.channel == event.getChannel())
 			{
-				switch(game.removePlayer(event.getChannel(),event.getAuthor()))
-				{
-				case SUCCESS:
-					event.reply(name + " left the game.");
-					break;
-				case NOTINGAME:
-					event.reply(name + " was never in the game.");
-					break;
-				case GAMEINPROGRESS:
-					event.reply("The game cannot be left after it has started.");
-					break;
-				default:
-					event.reply("Unknown error occurred.");
-					break;
-				}
+				game.removePlayer(event.getMember());
 				//We found the right channel, so
 				return;
 			}

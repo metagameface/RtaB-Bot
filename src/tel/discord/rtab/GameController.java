@@ -19,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 
 import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.MessageChannel;
 import net.dv8tion.jda.core.entities.TextChannel;
 import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
@@ -30,7 +29,6 @@ import tel.discord.rtab.enums.GameBot;
 import tel.discord.rtab.enums.GameStatus;
 import tel.discord.rtab.enums.Games;
 import tel.discord.rtab.enums.MoneyMultipliersToUse;
-import tel.discord.rtab.enums.PlayerQuitReturnValue;
 import tel.discord.rtab.enums.PlayerStatus;
 import tel.discord.rtab.enums.SpaceType;
 import tel.discord.rtab.minigames.MiniGame;
@@ -282,16 +280,18 @@ public class GameController implements Controller
 	}
 	/*
 	 * removePlayer - removes a player from the game.
-	 * MessageChannel channelID - channel the request was registered in.
 	 * String playerID - ID of player to be removed.
 	 */
-	public PlayerQuitReturnValue removePlayer(MessageChannel channelID, User playerID)
+	public void removePlayer(Member playerID)
 	{
 		//Make sure game isn't running, too late to quit now
 		if(gameStatus != GameStatus.SIGNUPS_OPEN)
-			return PlayerQuitReturnValue.GAMEINPROGRESS;
+		{
+			channel.sendMessage("The game cannot be left after it has started.").queue();
+			return;
+		}
 		//Search for player
-		int playerLocation = findPlayerInGame(playerID.getId());
+		int playerLocation = findPlayerInGame(playerID.getUser().getId());
 		if(playerLocation != -1)
 		{
 			players.remove(playerLocation);
@@ -299,10 +299,11 @@ public class GameController implements Controller
 			//Abort the game if everyone left
 			if(playersJoined == 0)
 				reset();
-			return PlayerQuitReturnValue.SUCCESS;
+			channel.sendMessage(playerID.getEffectiveName() + " left the game.").queue();
 		}
 		//Didn't find them, why are they trying to quit in the first place?
-		return PlayerQuitReturnValue.NOTINGAME;
+		else
+			channel.sendMessage(playerID.getEffectiveName() + " was never in the game.").queue();
 	}
 	/*
 	 * startTheGameAlready - prompts for players to choose bombs.

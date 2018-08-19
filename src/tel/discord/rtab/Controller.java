@@ -6,4 +6,5 @@ public interface Controller
 {
 	void reset();
 	void addPlayer(Member playerID);
+	void removePlayer(Member playerID);
 }

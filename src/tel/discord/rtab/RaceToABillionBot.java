@@ -30,6 +30,7 @@ import tel.discord.rtab.commands.StartCommand;
 import tel.discord.rtab.commands.TopCommand;
 import tel.discord.rtab.commands.TotalsCommand;
 import tel.discord.rtab.commands.ViewBombsCommand;
+import tel.discord.rtab.worstidea.MSController;
 
 import com.jagrosh.jdautilities.command.CommandClientBuilder;
 import com.jagrosh.jdautilities.commons.waiter.EventWaiter;
@@ -45,6 +46,7 @@ public class RaceToABillionBot
 		String owner = list.get(1);
 		EventWaiter waiter = new EventWaiter();
 		GameController.waiter = waiter;
+		MSController.waiter = waiter;
 		CommandClientBuilder utilities = new CommandClientBuilder();
 		utilities.setOwnerId(owner);
 		utilities.setPrefix("!");
