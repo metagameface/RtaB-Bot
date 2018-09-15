@@ -101,11 +101,11 @@ class BumperGrab extends MiniGame {
     */
   override def playNextTurn(pick: String): util.LinkedList[String] = {
     pick.toUpperCase match {
-      case "U" | "UP" | "N" | "NORTH" => new util.LinkedList(("UP..." +: move(Up)).asJava)
-      case "D" | "DOWN" | "S" | "SOUTH" => new util.LinkedList(("DOWN..." +: move(Down)).asJava)
-      case "L" | "LEFT" | "W" | "WEST" => new util.LinkedList(("LEFT..." +: move(Left)).asJava)
-      case "R" | "RIGHT" | "E" | "EAST" => new util.LinkedList(("RIGHT..." +: move(Right)).asJava)
-      case "QUIT" | "EXIT" | "STOP" =>
+      case "U" | "UP" => move(Up)
+      case "D" | "DOWN" => move(Down)
+      case "L" | "LEFT" => move(Left)
+      case "R" | "RIGHT" => move(Right)
+      case "E" | "EXIT" =>
         if (getSpace(player_X, player_Y) == Exit) escape
         else new util.LinkedList(List("There's no exit there, you gotta pick a direction!").asJava)
       case _ => new util.LinkedList[String]()
@@ -114,11 +114,11 @@ class BumperGrab extends MiniGame {
 
   //Turn the current space to ice and move past in the specified direction, continuing across ice and
   //bouncing off bumpers until hitting a non-ice, non-bumper space. Builds up drawings of the board
-  //with the path overlaid after each bumper, and returns a list of strings to be sent to the player
+  //with the path overlaid after each bumper
   @tailrec
   private def move(direction: Direction,
-                   currentSegment: Seq[(Int, Int)] = Vector((player_X, player_Y)),
-                   pathDrawings: Seq[Seq[String]] = Vector.empty): Seq[String] = {
+                   currentSegment: Seq[(Int, Int)] = Vector.empty,
+                   pathDrawings: Seq[Seq[String]] = Vector.empty): util.LinkedList[String] = {
 
     turnToIce(player_X, player_Y)
     player_X += direction.deltaX
@@ -128,48 +128,43 @@ class BumperGrab extends MiniGame {
       case Ice =>
         move(direction, currentSegment :+ (player_X, player_Y), pathDrawings)
       case Bumper(bumperDir) =>
-        val mapDrawing = drawBoard(showPlayer = false)
+        val lastMap = pathDrawings.lastOption.getOrElse(drawBoard(showPlayer = false))
         val nextDrawing =
-          if (direction.deltaX != 0)
-            drawHorizontalLine(mapDrawing, currentSegment :+ (player_X, player_Y), bumperDir.char)
-          else drawVerticalLine(mapDrawing, currentSegment :+ (player_X, player_Y), bumperDir.char)
-        move(bumperDir, Vector((player_X, player_Y)), pathDrawings :+ nextDrawing)
+          if (direction.deltaX != 0) drawHorizontalLine(lastMap, currentSegment :+ (player_X, player_Y), bumperDir.char)
+          else drawVerticalLine(lastMap, currentSegment :+ (player_X, player_Y), bumperDir.char)
+        move(bumperDir, Vector.empty, pathDrawings :+ nextDrawing)
       case Cash(amount) =>
         isFirstMove = false
         winnings += amount
-
-        val mapDrawing = drawBoard(showPlayer = false)
-        val cashDrawing =
-          if(direction.deltaX != 0)
-            drawHorizontalLine(mapDrawing, currentSegment :+ (player_X, player_Y), '$')
-          else
-            drawVerticalLine(mapDrawing, currentSegment :+ (player_X, player_Y), '$')
-
-        bumperMessages(pathDrawings) :+
-          ("```" +: cashDrawing :+ ("**$" + amount + "**")).mkString("\n") :+
+        new util.LinkedList[String](
+          (bumperMessages(pathDrawings) :+
+            "**$" + amount + "**" :+
             drawScoreboard
-
+            ).asJava)
       case Exit =>
         isFirstMove = false
-
-        bumperMessages(pathDrawings) :+
-          "Reached an exit! You can EXIT, or keep going!" :+
-          drawScoreboard
-
+        new util.LinkedList[String](
+          (bumperMessages(pathDrawings) :+
+            "Reached an exit! You can EXIT, or keep going!" :+
+            drawScoreboard
+            ).asJava)
       case Hole =>
         //TODO: Consider showing an additional drawing of the path going off the edge?
         gameOver = true
         if (isFirstMove) {
           winnings = 100
-
-          bumperMessages(pathDrawings) :+
-            "You fell off on your first move?! Jeez, have $100 on me." :+
-            drawScoreboard
+          new util.LinkedList[String](
+            (bumperMessages(pathDrawings) :+
+              "You fell off on your first move?! Jeez, have $100 on me." :+
+              drawScoreboard
+              ).asJava)
         } else {
           winnings = 0
-
-          bumperMessages(pathDrawings) :+
-            "You fell off!"
+          new util.LinkedList[String](
+            (bumperMessages(pathDrawings) :+
+              "You fell off!"
+              ).asJava
+          )
         }
     }
   }
@@ -198,10 +193,10 @@ class BumperGrab extends MiniGame {
     ).mkString("\n")
 
   def bumperMessages(boardDrawings: Seq[Seq[String]]): Seq[String] = boardDrawings.map { drawing =>
-    ("```" +:
+    (("**" + List("BING", "PING", "PONG", "BOING")(Random.nextInt(4)) + "**") +:
+      "```" +:
       drawing :+
-      "```" :+
-      ("**" + List("BING", "PING", "PONG", "BOING")(Random.nextInt(4)) + "**")
+      "```"
       ).mkString("\n")
   }
 
@@ -213,7 +208,10 @@ class BumperGrab extends MiniGame {
     //There's a space between each character, so x=n on the board maps to x=2n on the drawing
     def scale(x: Int) = 2 * x
 
-    val xStart = scale(segment.head._1)
+    //We're double spaced, and want to start drawing on the space *before* the start
+    val xStart =
+      if(segment.head._1 < segment.last._1) scale(segment.head._1) - 1
+      else scale(segment.head._1) + 1
     val xEnd = scale(segment.last._1)
     //Assume all y-values are the same
     val row = segment.head._2
@@ -222,6 +220,7 @@ class BumperGrab extends MiniGame {
       (0 to scale(boardWidth - 1)).map { x =>
         if (y == row && ((x >= xStart && x <= xEnd) || (x <= xStart && x >= xEnd))) {
           if (x == xEnd) terminatingChar
+          else if (boardDrawing(y)(x) == '|' || boardDrawing(y)(x) == '+') '+'
           else '-'
         } else boardDrawing(y)(x)
       }.mkString
@@ -245,7 +244,7 @@ class BumperGrab extends MiniGame {
       (0 to scale(boardWidth - 1)).map { x =>
         if (x == col && ((y >= yStart && y <= yEnd) || (y <= yStart && y >= yEnd))) {
           if (y == yEnd) terminatingChar
-          else '|'
+          else '|' //TODO: give this method some way to tell whether to draw a +
         } else boardDrawing(y)(x)
       }.mkString
     }
